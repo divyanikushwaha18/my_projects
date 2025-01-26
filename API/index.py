@@ -8,7 +8,7 @@ CORS(app)
 
 # Load the marks data from the JSON file
 def load_marks_data():
-    # Get the path to the JSON file in the current directory
+    # Get the path to the JSON file in the `api` subfolder
     json_file_path = os.path.join(os.path.dirname(__file__), 'q-vercel-python.json')
     
     # Read the JSON file
