@@ -1,35 +1,40 @@
-
-from flask import Flask, request, jsonify
-from flask_cors import CORS
+from http.server import BaseHTTPRequestHandler
+from urllib.parse import urlparse, parse_qs
 import json
 import os
 
-app = Flask(__name__)
-CORS(app)
+class handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        # Prepare the response headers
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        # Enable CORS
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.end_headers()
+        
+        # Parse the query string for ?name=...
+        query = urlparse(self.path).query
+        query_params = parse_qs(query)
+        # If multiple "name" params: /api?name=Alice&name=Bob, parse_qs gives a list
+        names = query_params.get('name', [])
 
-# Load the marks data from the JSON file
-def load_marks_data():
-    # Get the path to the JSON file in the `api` subfolder
-    json_file_path = os.path.join(os.path.dirname(__file__), 'q-vercel-python.json')
-    
-    # Read the JSON file
-    with open(json_file_path, 'r') as file:
-        data = json.load(file)
-    return data
+        # Load JSON array from q-vercel-python.json
+        file_path = os.path.join(os.path.dirname(__file__), 'q-vercel-python.json')
+        with open(file_path, 'r') as f:
+            data = json.load(f)  # data is a list of dicts: [{"name":"...", "marks":...}, ...]
 
-marks_data = load_marks_data()
+        # For each requested name, find the first matching record's "marks"
+        marks_list = []
+        for name in names:
+            found_marks = None
+            for item in data:
+                if item["name"] == name:
+                    found_marks = item["marks"]
+                    break
+            marks_list.append(found_marks)
 
-@app.route('/api', methods=['GET'])
-def get_marks():
-    names = request.args.getlist('name')
-    marks = []
-    for name in names:
-        student = next((item for item in marks_data if item["name"] == name), None)
-        if student:
-            marks.append(student["marks"])
-        else:
-            marks.append(None)
-    return jsonify({"marks": marks})
-
-if __name__ == '__main__':
-    app.run(debug=True)
+        # Create the JSON response
+        response_body = {"marks": marks_list}
+        self.wfile.write(json.dumps(response_body).encode())
